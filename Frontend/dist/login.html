@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sign In - Muktinath Collection Stores</title>
+  <link rel="icon" type="image/png" href="images/logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="admin-login-page">
+  <main class="admin-login-shell">
+    <section class="admin-login-visual" aria-label="Muktinath Collection Stores">
+      <img class="cosmetic-accent cosmetic-accent--lipstick" src="images/lipstick2.png" alt="" aria-hidden="true" />
+      <img class="cosmetic-accent cosmetic-accent--cream" src="images/creamm.png" alt="" aria-hidden="true" />
+      <img class="cosmetic-accent cosmetic-accent--blush" src="images/blush.png" alt="" aria-hidden="true" />
+      <div class="title-flower" aria-hidden="true">&#10059;</div>
+      <div class="admin-login-visual-copy">
+        <p class="login-kicker">Beauty, thoughtfully curated</p>
+        <h1>Care that feels like confidence.</h1>
+        <p>Discover authentic beauty essentials and bring your everyday routine a little closer to its glow.</p>
+      </div>
+    </section>
+
+    <section class="admin-login-form-panel">
+      <div class="admin-login-card">
+        <img class="admin-login-mobile-logo" src="images/logo.png" alt="Muktinath Collection Stores" />
+        <p class="login-kicker">Muktinath Collection Stores</p>
+        <h2 id="loginTitle">Welcome back</h2>
+        <p id="loginSubtitle" class="admin-login-subtitle">Sign in to continue your beauty journey.</p>
+        <div class="login-role-switch" role="group" aria-label="Choose account type">
+          <button type="button" class="login-role is-active" data-role="customer">Customer</button>
+          <button type="button" class="login-role" data-role="admin">Admin</button>
+        </div>
+        <form id="unifiedLoginForm" class="admin-login-form">
+          <label id="emailLabel" for="username">Email
+            <span class="login-input"><input id="username" type="email" autocomplete="username" required /></span>
+          </label>
+          <label for="password">Password
+            <span class="login-input"><input id="password" type="password" autocomplete="current-password" required /></span>
+          </label>
+          <button id="loginBtn" class="admin-login-submit" type="submit">Sign in as customer</button>
+          <div id="loginMessage" class="admin-login-message" role="status"></div>
+        </form>
+        <a class="admin-login-store-link" href="index.html"><span>&larr;</span> Explore the collection</a>
+      </div>
+    </section>
+  </main>
+  <script src="login.js"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Store Admin</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="admin-page">
+  <header class="admin-topbar">
+    <a href="index.html"><img src="images/logo.png" alt="Muktinath"></a>
+    <div><strong>Store Admin</strong><span id="authStatus">Loading...</span></div>
+    <button id="logoutBtn" class="admin-logout">Log out</button>
+  </header>
+  <main class="admin-shell">
+    <aside class="admin-sidebar">
+      <button class="admin-nav active" data-panel="overview">Overview</button>
+      <button class="admin-nav" data-panel="products">Products</button>
+      <button class="admin-nav" data-panel="categories">Categories</button>
+      <button class="admin-nav" data-panel="orders">Orders</button>
+      <button class="admin-nav" data-panel="tiktok">TikTok videos</button>
+      <a href="index.html">View store ↗</a>
+    </aside>
+    <section class="admin-content">
+      <div id="adminMessage" class="admin-message" role="status"></div>
+
+      <section class="admin-panel active" data-panel-content="overview">
+        <p class="admin-kicker">STORE OVERVIEW</p><h1>Welcome back</h1>
+        <p class="admin-muted">Manage your catalogue, categories, customer orders, and social videos from one place.</p>
+        <div class="admin-stats"><article><span>Products</span><strong id="statProducts">—</strong></article><article><span>Categories</span><strong id="statCategories">—</strong></article><article><span>Orders</span><strong id="statOrders">—</strong></article><article><span>Pending orders</span><strong id="statPending">—</strong></article></div>
+      </section>
+
+      <section class="admin-panel" data-panel-content="products">
+        <div class="admin-section-heading"><div><p class="admin-kicker">CATALOGUE</p><h2 id="productFormTitle">Add product</h2></div><button id="cancelEditBtn" class="admin-secondary" hidden>Cancel editing</button></div>
+        <form id="adminForm" class="admin-product-form"><input id="productId" type="hidden"><label>Name<input id="name" required></label><label>Category<select id="category" required></select></label><label>Price (NPR)<input id="price" type="number" min="0" required></label><label>Stock<input id="stock" type="number" min="0" value="10" required></label><label class="wide">Short description<input id="short" required></label><label class="wide">Full description<textarea id="description" rows="3" required></textarea></label><label class="wide">Ingredients <small>(comma separated)</small><input id="ingredients"></label><label class="wide">Image URL<input id="imageUrl" type="url" placeholder="https://..."></label><label class="wide">Or upload image<input id="imageFile" type="file" accept="image/*"></label><div class="wide admin-form-actions"><button id="saveBtn" class="admin-primary">Save product</button></div></form>
+        <div class="admin-list-heading"><h2>All products</h2><input id="productSearch" type="search" placeholder="Search products"></div><div id="productsList" class="admin-product-list"></div>
+      </section>
+
+      <section class="admin-panel" data-panel-content="categories">
+        <p class="admin-kicker">CATALOGUE</p><h2>Categories</h2><p class="admin-muted">Create, rename, or remove your store categories.</p>
+        <form id="categoryForm" class="admin-inline-form"><input id="newCategory" placeholder="e.g. Sunscreen" required><button class="admin-primary">Add category</button></form><div id="categoriesList" class="admin-category-list"></div>
+      </section>
+
+      <section class="admin-panel" data-panel-content="orders">
+        <div class="admin-section-heading"><div><p class="admin-kicker">SALES</p><h2>Customer orders</h2><p class="admin-muted">Review delivery details, payment screenshots, and verification before processing each order.</p></div><button id="refreshOrders" class="admin-secondary">Refresh</button></div><div id="ordersList" class="admin-orders-list"></div>
+      </section>
+
+      <section class="admin-panel" data-panel-content="tiktok">
+        <p class="admin-kicker">SOCIAL CONTENT</p><h2>TikTok video library</h2>
+        <p class="admin-muted">Add the latest TikTok video URLs here. Customers will see every listed video on the store homepage.</p>
+        <form id="tiktokAdminForm" class="admin-tiktok-form"><input id="tiktokPostUrl" type="url" placeholder="Paste a TikTok link, e.g. https://vt.tiktok.com/..." required><button class="admin-primary">Add TikTok video</button></form>
+        <div id="adminTikTokList" class="admin-tiktok-list"></div>
+      </section>
+    </section>
+  </main>
+  <script src="store-data.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

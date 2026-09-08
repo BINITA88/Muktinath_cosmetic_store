@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Categories - Muktinath Collection Stores</title>
+  <link rel="icon" type="image/png" href="images/logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <div>
+        <h1>Category Manager</h1>
+        <p>Add and view categories.</p>
+      </div>
+      <nav class="nav-links">
+        <a href="admin.html">Admin</a>
+        <a href="admin-orders.html">Orders</a>
+        <a href="index.html">Home</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container">
+    <section class="category-section">
+      <h3>Add Category</h3>
+      <div class="admin-form">
+        <div class="form-row"><label>New Category <input id="newCategory" placeholder="e.g., Cerum" /></label></div>
+        <button id="addCategoryBtn" class="btn">Add Category</button>
+      </div>
+      <div id="categoryMessage" class="admin-message"></div>
+    </section>
+    <section class="category-section">
+      <h3>Current Categories</h3>
+      <div id="categoryList"></div>
+    </section>
+  </main>
+  <script src="category.js"></script>
+</body>
+</html>

@@ -12,7 +12,9 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 
-const uploadsPath = path.join(__dirname, 'uploads');
+// Vercel functions may only write temporarily under /tmp. Local development
+// keeps using Backend/uploads as before.
+const uploadsPath = process.env.VERCEL ? path.join('/tmp', 'muktinath-uploads') : path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadsPath, { recursive: true });
 const imageUpload = multer({
   storage: multer.diskStorage({
@@ -112,8 +114,13 @@ let categoriesCollection;
 let usersCollection;
 let ordersCollection;
 let tiktokPostsCollection;
+let dbConnectionPromise;
 
 async function connectDb() {
+  if (dbClient) return;
+  if (dbConnectionPromise) return dbConnectionPromise;
+
+  dbConnectionPromise = (async () => {
   const client = new MongoClient(mongoUri);
   await client.connect();
   dbClient = client;
@@ -154,6 +161,12 @@ async function connectDb() {
   }
 
   console.log(`Connected to MongoDB: ${mongoUri}, db: ${dbName}, products: ${collectionName}, categories: categories`);
+  })().catch((error) => {
+    dbConnectionPromise = null;
+    throw error;
+  });
+
+  return dbConnectionPromise;
 }
 
 function publicUser(user) {
@@ -754,17 +767,22 @@ app.patch('/api/admin/orders/:id', requireAdmin, async (req, res) => {
   }
 });
 
-// The backend serves the storefront so the project only needs one server.
-const frontendPath = path.join(__dirname, '..', 'frontend');
-app.use(express.static(frontendPath));
-app.get('*', (_req, res) => res.sendFile(path.join(frontendPath, 'index.html')));
+// Keep the traditional local server, but export the Express app for Vercel's
+// /api function. Vercel invokes the function and must not call app.listen().
+if (require.main === module) {
+  const frontendPath = path.join(__dirname, '..', 'Frontend');
+  app.use(express.static(frontendPath));
+  app.get('*', (_req, res) => res.sendFile(path.join(frontendPath, 'index.html')));
 
-const port = process.env.PORT || 5000;
-connectDb()
-  .then(() => {
-    app.listen(port, () => console.log(`Backend running on http://localhost:${port}`));
-  })
-  .catch((err) => {
-    console.error('Failed to connect to MongoDB', err);
-    process.exit(1);
-  });
+  const port = process.env.PORT || 5000;
+  connectDb()
+    .then(() => {
+      app.listen(port, () => console.log(`Backend running on http://localhost:${port}`));
+    })
+    .catch((err) => {
+      console.error('Failed to connect to MongoDB', err);
+      process.exit(1);
+    });
+}
+
+module.exports = { app, connectDb };
