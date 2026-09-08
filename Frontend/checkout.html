@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkout - Muktinath Collection Stores</title>
+  <link rel="icon" type="image/png" href="images/logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="siteHeader" data-subtitle="Checkout"></div>
+  <main class="container">
+    <h2>Checkout</h2>
+    <div class="checkout-layout">
+      <div class="category-section">
+        <h3>Shipping Details</h3>
+        <form id="checkoutForm" class="admin-form">
+          <div class="form-row"><label>Full Name <input id="fullName" required /></label></div>
+          <div class="form-row"><label>Phone <input id="phone" required /></label></div>
+          <div class="form-row"><label>City <input id="city" required /></label></div>
+          <div class="form-row"><label>Delivery Address <textarea id="address" rows="2" required></textarea></label></div>
+          <div class="form-row"><label>Order Notes (optional) <textarea id="notes" rows="2"></textarea></label></div>
+
+          <h3>Payment Method</h3>
+          <div class="payment-options">
+            <label class="payment-option">
+              <input type="radio" name="paymentMethod" value="COD" checked />
+              Cash on Delivery
+            </label>
+            <label class="payment-option">
+              <input type="radio" name="paymentMethod" value="eSewa" />
+              eSewa
+              <span class="hint">Demo placeholder</span>
+            </label>
+            <label class="payment-option">
+              <input type="radio" name="paymentMethod" value="Khalti" />
+              Khalti
+              <span class="hint">Demo placeholder</span>
+            </label>
+          </div>
+
+          <button id="placeOrderBtn" type="submit" class="btn">Place Order</button>
+        </form>
+        <div id="checkoutMessage" class="admin-message"></div>
+      </div>
+
+      <div class="cart-summary">
+        <h3>Order Summary</h3>
+        <div id="orderSummaryList" class="order-summary-list"></div>
+        <div class="summary-line"><span>Subtotal</span><span id="summarySubtotal"></span></div>
+        <div class="summary-line"><span>Shipping</span><span id="summaryShipping"></span></div>
+        <div class="summary-line total"><span>Total</span><span id="summaryTotal"></span></div>
+      </div>
+    </div>
+  </main>
+  <div id="siteFooter"></div>
+  <script src="common.js"></script>
+  <script src="checkout.js"></script>
+</body>
+</html>

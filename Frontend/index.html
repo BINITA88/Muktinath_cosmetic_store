@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Muktinath Collection Stores</title>
+  <link rel="icon" type="image/png" href="images/logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="siteHeader" data-subtitle="Premium Nepali cosmetics with natural ingredients."></div>
+
+  <main class="container">
+    <!--
+    <section class="promo-banner">
+      <span class="promo-eyebrow">Festive Glow Sale</span>
+      <h2>Flat 15% off on skincare essentials</h2>
+      <p>Use code GLOW15 at checkout &middot; Cash on Delivery available across Nepal</p>
+      <a href="#products" class="btn">Shop Now</a>
+    </section>
+    -->
+
+    <section class="hero-carousel" id="heroCarousel" aria-label="Featured offers">
+      <div class="hero-carousel-track">
+        <article class="hero-slide is-active" aria-hidden="false">
+          <div class="hero-slide-content">
+            <span class="hero-slide-eyebrow">Premium beauty, made personal</span>
+            <h1>Care that brings out your natural glow</h1>
+            <p>Shop trusted skincare, makeup, and hair-care essentials in one place.</p>
+            <a class="btn" href="#products">Shop Collection</a>
+          </div>
+        </article>
+        <article class="hero-slide hero-slide-hair" aria-hidden="true">
+          <div class="hero-slide-content">
+            <span class="hero-slide-eyebrow">Salon-inspired hair care</span>
+            <h1>Give every strand the care it deserves</h1>
+            <p>Discover nourishing shampoo, keratin, and repair essentials for healthy-looking hair.</p>
+            <a class="btn" href="index.html?category=Shampoo">Explore Hair Care</a>
+          </div>
+        </article>
+        <article class="hero-slide hero-slide-store" aria-hidden="true">
+          <div class="hero-slide-content">
+            <span class="hero-slide-eyebrow">Your beauty destination</span>
+            <h1>Everyday favourites to special-day beauty</h1>
+            <p>Find the products you love, from bridal essentials to beauty must-haves.</p>
+            <a class="btn" href="index.html?category=Bridal%20Package">Shop Bridal Picks</a>
+          </div>
+        </article>
+      </div>
+      <button class="hero-carousel-arrow hero-carousel-prev" type="button" aria-label="Previous slide">&#8249;</button>
+      <button class="hero-carousel-arrow hero-carousel-next" type="button" aria-label="Next slide">&#8250;</button>
+      <div class="hero-carousel-dots" aria-label="Choose banner slide">
+        <button class="is-active" type="button" aria-label="Show slide 1" aria-current="true"></button>
+        <button type="button" aria-label="Show slide 2"></button>
+        <button type="button" aria-label="Show slide 3"></button>
+      </div>
+    </section>
+
+    <section class="showcase-section">
+      <div class="showcase-head">
+        <h3>Explore Our Collections</h3>
+      </div>
+      <div class="showcase-track-wrap">
+        <button type="button" class="showcase-arrow left" id="showcasePrev">&#8249;</button>
+        <div id="showcaseTrack" class="showcase-track"></div>
+        <button type="button" class="showcase-arrow right" id="showcaseNext">&#8250;</button>
+      </div>
+    </section>
+
+    <section id="products" class="products-grid"></section>
+  </main>
+
+  <div id="siteFooter"></div>
+
+  <script src="common.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

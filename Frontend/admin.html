@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard - Muktinath Collection Stores</title>
+  <link rel="icon" type="image/png" href="images/logo.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container nav-wrap">
+      <div>
+        <h1>Admin Dashboard</h1>
+        <p>Add products for Muktinath Collection Stores.</p>
+      </div>
+      <nav class="nav-links">
+        <a href="index.html">Home</a>
+        <a href="category.html">Add Category</a>
+        <a href="admin-orders.html">Orders</a>
+      </nav>
+    </div>
+  </header>
+  <main class="container" style="display:flex; gap:1rem; align-items:flex-start;">
+    <aside style="min-width:180px; background:#fff; border-radius:12px; padding:1rem; box-shadow:0 5px 16px rgba(0,0,0,.1);">
+      <h3>Admin Menu</h3>
+      <ul style="list-style:none; padding:0; margin:0;">
+        <li><a href="admin.html" style="text-decoration:none; color:#333;">Products</a></li>
+        <li><a href="category.html" style="text-decoration:none; color:#333;">Categories</a></li>
+        <li><a href="admin-orders.html" style="text-decoration:none; color:#333;">Orders</a></li>
+        <li><a href="#" id="logoutBtn" style="text-decoration:none; color:#d01c68;">Logout</a></li>
+      </ul>
+      <div id="authStatus" style="margin-top:1rem; color:#555;"></div>
+    </aside>
+    <section style="flex:1;">
+      <div class="category-section">
+        <h3>Admin Add Product</h3>
+        <form id="adminForm" class="admin-form">
+          <div class="form-row"><label>Name <input id="name" required /></label></div>
+          <div class="form-row"><label>Category <select id="category" required></select></label></div>
+          <div class="form-row"><label>Price <input id="price" type="number" required /></label></div>
+          <div class="form-row"><label>Currency <input id="currency" value="NPR" required /></label></div>
+          <div class="form-row"><label>Short Description <input id="short" required /></label></div>
+          <div class="form-row"><label>Description <textarea id="description" rows="3" required></textarea></label></div>
+          <div class="form-row"><label>Ingredients (comma separated) <input id="ingredients" required /></label></div>
+          <div class="form-row"><label>Stock <input id="stock" type="number" value="10" required /></label></div>
+          <div class="form-row"><label>Image Source URL <input id="imageUrl" placeholder="https://..." /></label></div>
+          <div class="form-row"><label>Or Upload Image <input id="imageFile" type="file" accept="image/*" /></label></div>
+          <button id="saveBtn" type="submit" class="btn">Save Product</button>
+        </form>
+        <div id="adminMessage" class="admin-message"></div>
+      </div>
+    </section>
+  </main>
+  <script src="admin.js"></script>
+</body>
+</html>
