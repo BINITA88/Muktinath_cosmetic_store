@@ -1,14 +1,28 @@
 require('dotenv').config();
 const crypto = require('crypto');
+const fs = require('fs');
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
 const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+
+const uploadsPath = path.join(__dirname, 'uploads');
+fs.mkdirSync(uploadsPath, { recursive: true });
+const imageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsPath),
+    filename: (_req, file, cb) => cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${path.extname(file.originalname).toLowerCase()}`)
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(jpeg|png|webp|gif)$/.test(file.mimetype))
+});
+app.use('/uploads', express.static(uploadsPath));
 
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
@@ -18,7 +32,8 @@ const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017';
 const dbName = process.env.MONGODB_DB || 'kalpana';
 const collectionName = process.env.MONGODB_COLLECTION || 'products';
 
-const ORDER_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const ORDER_STATUSES = ['Payment Verification', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const PAYMENT_VERIFICATION_STATUSES = ['Awaiting review', 'Verified', 'Not verified', 'Not required'];
 const SHIPPING_FEE = 100;
 const FREE_SHIPPING_THRESHOLD = 3000;
 
@@ -96,6 +111,7 @@ let productsCollection;
 let categoriesCollection;
 let usersCollection;
 let ordersCollection;
+let tiktokPostsCollection;
 
 async function connectDb() {
   const client = new MongoClient(mongoUri);
@@ -106,6 +122,7 @@ async function connectDb() {
   categoriesCollection = db.collection('categories');
   usersCollection = db.collection('users');
   ordersCollection = db.collection('orders');
+  tiktokPostsCollection = db.collection('tiktokPosts');
 
   // Clean duplicate category docs by name before creating unique index
   const categoryNames = await categoriesCollection.distinct('name');
@@ -121,6 +138,8 @@ async function connectDb() {
   await usersCollection.createIndex({ email: 1 }, { unique: true, background: true });
   await usersCollection.createIndex({ token: 1 }, { background: true });
   await ordersCollection.createIndex({ userId: 1 }, { background: true });
+  await tiktokPostsCollection.createIndex({ createdAt: -1 }, { background: true });
+  await tiktokPostsCollection.createIndex({ url: 1 }, { unique: true, background: true });
 
   const defaultCategories = Array.from(new Set(sampleProducts.map((p) => p.category).filter(Boolean)));
   for (const name of defaultCategories) {
@@ -161,6 +180,21 @@ app.get('/api/admin/check', (req, res) => {
     return res.json({ authorized: true });
   }
   return res.status(401).json({ error: 'Unauthorized' });
+});
+
+app.get('/api/admin/dashboard', requireAdmin, async (_req, res) => {
+  try {
+    const [products, categories, orders, pendingOrders] = await Promise.all([
+      productsCollection.countDocuments(),
+      categoriesCollection.countDocuments(),
+      ordersCollection.countDocuments(),
+      ordersCollection.countDocuments({ status: 'Pending' })
+    ]);
+    res.json({ products, categories, orders, pendingOrders });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to load dashboard' });
+  }
 });
 
 function requireAdmin(req, res, next) {
@@ -231,6 +265,22 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+app.post('/api/auth/demo-login', async (_req, res) => {
+  try {
+    const email = 'customer@muktinath.com';
+    let user = await usersCollection.findOne({ email });
+    if (!user) {
+      const passwordHash = await bcrypt.hash('customer123', 10);
+      user = { name: 'Demo Customer', email, phone: '9800000000', passwordHash, token: crypto.randomBytes(24).toString('hex'), createdAt: new Date() };
+      user._id = (await usersCollection.insertOne(user)).insertedId;
+    } else {
+      user.token = crypto.randomBytes(24).toString('hex');
+      await usersCollection.updateOne({ _id: user._id }, { $set: { token: user.token } });
+    }
+    res.json({ token: user.token, user: publicUser(user) });
+  } catch (error) { res.status(500).json({ error: 'Unable to start demo account' }); }
+});
+
 async function requireAuth(req, res, next) {
   try {
     const auth = req.headers.authorization;
@@ -252,6 +302,111 @@ async function requireAuth(req, res, next) {
 
 app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json(publicUser(req.user));
+});
+
+// ---------- TikTok videos ----------
+
+function isTikTokHost(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  return host === 'tiktok.com' || host.endsWith('.tiktok.com');
+}
+
+function getTikTokVideoId(value) {
+  try {
+    const parsed = new URL(value);
+    if (!isTikTokHost(parsed.hostname)) return null;
+    return parsed.pathname.match(/(?:video|v)\/(\d+)/)?.[1]
+      || parsed.pathname.match(/\/(\d+)(?:\/)?$/)?.[1]
+      || null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function getTikTokEmbedUrl(value) {
+  const sourceUrl = String(value || '').trim();
+  let parsed;
+  try {
+    parsed = new URL(sourceUrl);
+  } catch (error) {
+    return null;
+  }
+
+  if (!isTikTokHost(parsed.hostname)) return null;
+
+  let videoId = getTikTokVideoId(sourceUrl);
+  if (!videoId) {
+    try {
+      // TikTok's vt/vm links redirect to the full post URL. Only an approved
+      // TikTok host can be requested, so a submitted URL cannot be used as a proxy.
+      const response = await fetch(sourceUrl, {
+        redirect: 'follow',
+        signal: AbortSignal.timeout(12000),
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      videoId = getTikTokVideoId(response.url);
+    } catch (error) {
+      return null;
+    }
+  }
+
+  return videoId ? `https://www.tiktok.com/embed/v2/${videoId}` : null;
+}
+
+function publicTikTokPost(post) {
+  return {
+    id: post._id,
+    url: post.url,
+    embedUrl: post.embedUrl || (getTikTokVideoId(post.url) ? `https://www.tiktok.com/embed/v2/${getTikTokVideoId(post.url)}` : null),
+    createdAt: post.createdAt
+  };
+}
+
+app.get('/api/tiktok-posts', async (_req, res) => {
+  try {
+    const posts = await tiktokPostsCollection.find({}).sort({ createdAt: -1 }).toArray();
+    res.json(posts.map(publicTikTokPost));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to fetch TikTok videos' });
+  }
+});
+
+app.get('/api/admin/tiktok-posts', requireAdmin, async (_req, res) => {
+  try {
+    const posts = await tiktokPostsCollection.find({}).sort({ createdAt: -1 }).toArray();
+    res.json(posts.map(publicTikTokPost));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to fetch TikTok videos' });
+  }
+});
+
+app.post('/api/admin/tiktok-posts', requireAdmin, async (req, res) => {
+  try {
+    const url = String(req.body.url || '').trim();
+    const embedUrl = await getTikTokEmbedUrl(url);
+    if (!embedUrl) return res.status(400).json({ error: 'Use a TikTok video link. Short vt.tiktok.com links are accepted, but the link must open to a public video.' });
+    const post = { url, embedUrl, createdAt: new Date() };
+    const result = await tiktokPostsCollection.insertOne(post);
+    res.status(201).json({ id: result.insertedId, ...post });
+  } catch (error) {
+    if (error.code === 11000) return res.status(409).json({ error: 'This TikTok video is already listed' });
+    console.error(error);
+    res.status(500).json({ error: 'Unable to add TikTok video' });
+  }
+});
+
+app.delete('/api/admin/tiktok-posts/:id', requireAdmin, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'Invalid TikTok video id' });
+    const result = await tiktokPostsCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+    if (!result.deletedCount) return res.status(404).json({ error: 'TikTok video not found' });
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to remove TikTok video' });
+  }
 });
 
 // ---------- Products ----------
@@ -341,6 +496,39 @@ app.post('/api/categories', requireAdmin, async (req, res) => {
   }
 });
 
+app.put('/api/categories/:name', requireAdmin, async (req, res) => {
+  try {
+    const currentName = decodeURIComponent(req.params.name).trim();
+    const nextName = (req.body.name || '').trim();
+    if (!currentName || !nextName) return res.status(400).json({ error: 'Category name is required' });
+    if (currentName === nextName) return res.json({ name: nextName });
+    if (await categoriesCollection.findOne({ name: nextName })) {
+      return res.status(409).json({ error: 'A category with that name already exists' });
+    }
+    const result = await categoriesCollection.updateOne({ name: currentName }, { $set: { name: nextName } });
+    if (!result.matchedCount) return res.status(404).json({ error: 'Category not found' });
+    await productsCollection.updateMany({ category: currentName }, { $set: { category: nextName } });
+    res.json({ name: nextName });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to update category' });
+  }
+});
+
+app.delete('/api/categories/:name', requireAdmin, async (req, res) => {
+  try {
+    const name = decodeURIComponent(req.params.name).trim();
+    const productCount = await productsCollection.countDocuments({ category: name });
+    if (productCount) return res.status(409).json({ error: 'Move or delete products in this category first' });
+    const result = await categoriesCollection.deleteOne({ name });
+    if (!result.deletedCount) return res.status(404).json({ error: 'Category not found' });
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to delete category' });
+  }
+});
+
 app.post('/api/products', requireAdmin, async (req, res) => {
   try {
     const { name, category, price, currency, short, description, ingredients, stock, image } = req.body;
@@ -372,16 +560,66 @@ app.post('/api/products', requireAdmin, async (req, res) => {
   }
 });
 
+app.post('/api/uploads/product-image', requireAdmin, imageUpload.single('image'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Please choose a JPG, PNG, WEBP, or GIF image (maximum 5 MB)' });
+  res.status(201).json({ image: `/uploads/${req.file.filename}` });
+});
+
+app.post('/api/uploads/payment-proof', requireAuth, imageUpload.single('proof'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Please choose a JPG, PNG, WEBP, or GIF image (maximum 5 MB)' });
+  res.status(201).json({ image: `/uploads/${req.file.filename}` });
+});
+
+app.put('/api/products/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid product id' });
+    const { name, category, price, currency, short, description, ingredients, stock, image } = req.body;
+    if (!name || !category || price === undefined || !short || !description || !image) {
+      return res.status(400).json({ error: 'Name, category, price, short, description and image are required' });
+    }
+    const product = {
+      name: name.trim(), category: category.trim(), price: Number(price), currency: currency || 'NPR',
+      short: short.trim(), description: description.trim(),
+      ingredients: Array.isArray(ingredients) ? ingredients : String(ingredients || '').split(',').map((i) => i.trim()).filter(Boolean),
+      stock: Number(stock) || 0, image: image.trim()
+    };
+    await categoriesCollection.updateOne({ name: product.category }, { $setOnInsert: { name: product.category } }, { upsert: true });
+    const result = await productsCollection.findOneAndUpdate({ _id: new ObjectId(id) }, { $set: product }, { returnDocument: 'after' });
+    if (!result) return res.status(404).json({ error: 'Product not found' });
+    res.json({ id: result._id, ...result });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to update product' });
+  }
+});
+
+app.delete('/api/products/:id', requireAdmin, async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'Invalid product id' });
+    const result = await productsCollection.deleteOne({ _id: new ObjectId(req.params.id) });
+    if (!result.deletedCount) return res.status(404).json({ error: 'Product not found' });
+    res.status(204).end();
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Unable to delete product' });
+  }
+});
+
 // ---------- Orders ----------
 
 app.post('/api/orders', requireAuth, async (req, res) => {
   try {
-    const { items, shippingAddress, paymentMethod } = req.body;
+    const { items, shippingAddress, paymentMethod, paymentProof } = req.body;
     if (!Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: 'Cart is empty' });
     }
     if (!shippingAddress || !shippingAddress.fullName || !shippingAddress.phone || !shippingAddress.city || !shippingAddress.address) {
       return res.status(400).json({ error: 'Full shipping address is required' });
+    }
+    const isOnlinePayment = ['eSewa', 'Bank'].includes(paymentMethod);
+    if (isOnlinePayment && (!paymentProof || !String(paymentProof).startsWith('/uploads/'))) {
+      return res.status(400).json({ error: 'A payment proof is required for eSewa and bank transfer orders' });
     }
 
     const orderItems = [];
@@ -432,8 +670,10 @@ app.post('/api/orders', requireAuth, async (req, res) => {
         address: shippingAddress.address.trim(),
         notes: (shippingAddress.notes || '').trim()
       },
-      paymentMethod: ['COD', 'eSewa', 'Khalti'].includes(paymentMethod) ? paymentMethod : 'COD',
-      status: 'Pending',
+      paymentMethod: ['COD', 'eSewa', 'Bank'].includes(paymentMethod) ? paymentMethod : 'COD',
+      paymentProof: isOnlinePayment ? String(paymentProof) : null,
+      paymentVerification: isOnlinePayment ? 'Awaiting review' : 'Not required',
+      status: isOnlinePayment ? 'Payment Verification' : 'Pending',
       createdAt: new Date()
     };
 
@@ -485,16 +725,23 @@ app.get('/api/admin/orders', requireAdmin, async (req, res) => {
 app.patch('/api/admin/orders/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, paymentVerification } = req.body;
     if (!ObjectId.isValid(id)) {
       return res.status(400).json({ error: 'Invalid order id' });
     }
-    if (!ORDER_STATUSES.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    const updates = {};
+    if (status !== undefined) {
+      if (!ORDER_STATUSES.includes(status)) return res.status(400).json({ error: 'Invalid order status' });
+      updates.status = status;
     }
+    if (paymentVerification !== undefined) {
+      if (!PAYMENT_VERIFICATION_STATUSES.includes(paymentVerification)) return res.status(400).json({ error: 'Invalid payment status' });
+      updates.paymentVerification = paymentVerification;
+    }
+    if (!Object.keys(updates).length) return res.status(400).json({ error: 'Choose an order or payment status to update' });
     const result = await ordersCollection.findOneAndUpdate(
       { _id: new ObjectId(id) },
-      { $set: { status } },
+      { $set: updates },
       { returnDocument: 'after' }
     );
     if (!result) {

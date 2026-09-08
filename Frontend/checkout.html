@@ -21,25 +21,7 @@
           <div class="form-row"><label>Delivery Address <textarea id="address" rows="2" required></textarea></label></div>
           <div class="form-row"><label>Order Notes (optional) <textarea id="notes" rows="2"></textarea></label></div>
 
-          <h3>Payment Method</h3>
-          <div class="payment-options">
-            <label class="payment-option">
-              <input type="radio" name="paymentMethod" value="COD" checked />
-              Cash on Delivery
-            </label>
-            <label class="payment-option">
-              <input type="radio" name="paymentMethod" value="eSewa" />
-              eSewa
-              <span class="hint">Demo placeholder</span>
-            </label>
-            <label class="payment-option">
-              <input type="radio" name="paymentMethod" value="Khalti" />
-              Khalti
-              <span class="hint">Demo placeholder</span>
-            </label>
-          </div>
-
-          <button id="placeOrderBtn" type="submit" class="btn">Place Order</button>
+          <button id="placeOrderBtn" type="submit" class="btn">Choose payment method</button>
         </form>
         <div id="checkoutMessage" class="admin-message"></div>
       </div>
@@ -53,6 +35,45 @@
       </div>
     </div>
   </main>
+  <div id="paymentModal" class="checkout-modal" hidden aria-hidden="true">
+    <div class="checkout-modal__backdrop" data-close-payment-modal></div>
+    <section class="checkout-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="paymentModalTitle">
+      <button type="button" class="modal-close" data-close-payment-modal aria-label="Close payment window">&times;</button>
+      <div id="paymentChoiceStep">
+        <p class="modal-kicker">Secure checkout</p>
+        <h2 id="paymentModalTitle">Choose payment method</h2>
+        <p class="modal-intro">Select one option to continue with your order.</p>
+        <div class="payment-options payment-options--modal">
+          <label class="payment-option payment-option--card"><input type="radio" name="paymentMethod" value="COD" checked /><span><strong>Cash on Delivery</strong><small>Pay when your order arrives</small></span></label>
+          <label class="payment-option payment-option--card"><input type="radio" name="paymentMethod" value="eSewa" /><span><strong>eSewa</strong><small>Scan the QR and upload your payment proof</small></span></label>
+          <label class="payment-option payment-option--card"><input type="radio" name="paymentMethod" value="Bank" /><span><strong>Bank transfer</strong><small>Scan the QR and upload your payment proof</small></span></label>
+        </div>
+        <button id="paymentProceedBtn" type="button" class="btn modal-action">Proceed</button>
+      </div>
+      <div id="paymentProofStep" hidden>
+        <button id="paymentBackBtn" type="button" class="modal-back">&larr; Change payment method</button>
+        <p class="modal-kicker">One last step</p>
+        <h2 id="proofTitle">Upload payment proof</h2>
+        <div id="paymentQr" class="payment-qr" hidden></div>
+        <div id="paymentProofUpload" class="proof-upload">
+          <label for="paymentProof"><strong>Payment screenshot or receipt</strong><span>JPG, PNG, WEBP, or GIF &middot; maximum 5 MB</span></label>
+          <input id="paymentProof" type="file" accept="image/jpeg,image/png,image/webp,image/gif" />
+          <p id="paymentProofName" class="proof-file-name" aria-live="polite"></p>
+        </div>
+        <p id="codPaymentNote" class="cod-payment-note" hidden>Cash on Delivery selected. No payment proof is needed; you will pay when the order arrives.</p>
+        <button id="confirmOrderBtn" type="button" class="btn modal-action">Place order</button>
+      </div>
+      <div id="paymentSuccessStep" class="payment-success" hidden aria-live="polite">
+        <div class="confetti" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="success-burst">&#10003;</div>
+        <p class="modal-kicker">Payment proof received</p>
+        <h2>Thank you! Your order is under review.</h2>
+        <p>Your order will move forward only after we check your payment proof.</p>
+        <p>We will send you an SMS or call you from the shop with delivery details. The delivery process starts after confirmation.</p>
+        <button id="viewOrderBtn" type="button" class="btn modal-action">View my order</button>
+      </div>
+    </section>
+  </div>
   <div id="siteFooter"></div>
   <script src="common.js"></script>
   <script src="checkout.js"></script>

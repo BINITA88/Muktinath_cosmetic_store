@@ -101,7 +101,8 @@ function initHeroCarousel() {
   const prevButton = carousel.querySelector('.hero-carousel-prev');
   const nextButton = carousel.querySelector('.hero-carousel-next');
   let activeIndex = 0;
-  let autoPlayId;
+  let autoPlayId = null;
+  const autoScrollDelay = 4000;
 
   const showSlide = (nextIndex) => {
     activeIndex = (nextIndex + slides.length) % slides.length;
@@ -118,10 +119,15 @@ function initHeroCarousel() {
     });
   };
 
-  const stopAutoPlay = () => window.clearInterval(autoPlayId);
+  const stopAutoPlay = () => {
+    if (autoPlayId) window.clearInterval(autoPlayId);
+    autoPlayId = null;
+  };
   const startAutoPlay = () => {
     stopAutoPlay();
-    autoPlayId = window.setInterval(() => showSlide(activeIndex + 1), 5000);
+    if (slides.length > 1 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      autoPlayId = window.setInterval(() => showSlide(activeIndex + 1), autoScrollDelay);
+    }
   };
 
   prevButton.addEventListener('click', () => {
@@ -140,13 +146,46 @@ function initHeroCarousel() {
   carousel.addEventListener('mouseleave', startAutoPlay);
   carousel.addEventListener('focusin', stopAutoPlay);
   carousel.addEventListener('focusout', startAutoPlay);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopAutoPlay();
+    else startAutoPlay();
+  });
 
+  showSlide(0);
   startAutoPlay();
+}
+
+function getTikTokEmbedUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.includes('tiktok.com')) return null;
+    const id = parsed.pathname.match(/(?:video|v)\/(\d+)/)?.[1] || parsed.pathname.match(/\/(\d+)(?:\/)?$/)?.[1];
+    return id ? `https://www.tiktok.com/embed/v2/${id}` : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function loadTikTokVideos() {
+  const container = document.getElementById('tiktokVideos');
+  if (!container) return;
+  try {
+    const response = await fetch(`${API_ROOT}/tiktok-posts`);
+    if (!response.ok) throw new Error('Could not load videos');
+    const posts = await response.json();
+    container.innerHTML = posts.length ? posts.map((post) => {
+      const embedUrl = post.embedUrl || getTikTokEmbedUrl(post.url);
+      return embedUrl ? `<article class="tiktok-video-card"><iframe src="${embedUrl}" title="Muktinath TikTok beauty video" allow="encrypted-media; fullscreen" allowfullscreen></iframe></article>` : '';
+    }).join('') : '<p class="tiktok-empty">New beauty videos are coming soon. Follow us on TikTok for the latest updates.</p>';
+  } catch (error) {
+    container.innerHTML = '<p class="tiktok-empty">TikTok videos are unavailable right now. Please check back soon.</p>';
+  }
 }
 
 async function loadProducts() {
   try {
     const res = await fetch(`${API_ROOT}/products`);
+    if (!res.ok) throw new Error('Could not load products');
     allProducts = await res.json();
     renderShowcase(allProducts);
     applyFilters();
@@ -174,5 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   initHeroCarousel();
+  loadTikTokVideos();
   loadProducts();
 });

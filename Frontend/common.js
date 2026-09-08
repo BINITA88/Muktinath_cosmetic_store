@@ -203,6 +203,12 @@ function updateAccountNav() {
 function headerTemplate(subtitle) {
   return `
     <header class="site-header storefront-header">
+      <div class="announcement-bar">
+        <div class="announcement-inner">
+          <span>Complimentary delivery on orders over Rs 3,000</span>
+          <span>Authentic beauty essentials, delivered across Nepal</span>
+        </div>
+      </div>
       <div class="container header-top">
         <a href="index.html" class="brand">
           <img src="images/logo.png" alt="Muktinath Collection Stores" class="brand-logo" />
@@ -214,25 +220,15 @@ function headerTemplate(subtitle) {
         <div class="icon-nav">
           <a href="wishlist.html" class="icon-btn" title="Wishlist">${ICONS.heart}<span class="icon-badge" id="wishlistCount">0</span></a>
           <a href="cart.html" class="icon-btn" title="Cart">${ICONS.bag}<span class="icon-badge" id="cartCount">0</span></a>
-          <a href="orders.html" class="icon-btn" title="My Orders">${ICONS.clock}</a>
-          <a href="account.html" class="icon-btn account-btn" id="accountLink" title="Account">${ICONS.user}<span class="icon-label">Login</span></a>
+          <a href="login.html" class="icon-btn account-btn" id="accountLink" title="Account">${ICONS.user}<span class="icon-label">Login</span></a>
         </div>
       </div>
-      ${subtitle ? `<div class="container header-subtitle">${subtitle}</div>` : ''}
       <nav class="category-nav">
         <div class="container category-nav-inner">
           <div class="category-nav-row" id="categoryNavRow">
-            <a href="index.html" class="category-nav-item">${ICONS.sparkle}<span>All Beauty</span></a>
+            <a href="index.html" class="category-nav-item">${ICONS.sparkle}<span>All products</span></a>
           </div>
-          <div class="dropdown more-dropdown" id="moreDropdown">
-            <button type="button" class="dropdown-toggle">More ${ICONS.chevronDown}</button>
-            <div class="dropdown-menu">
-              <a href="index.html#products">New Arrivals</a>
-              <a href="index.html#products">Best Sellers</a>
-              <a href="orders.html">Track Order</a>
-              <a href="index.html#contact">Contact Us</a>
-            </div>
-          </div>
+          <a class="track-order-link" href="orders.html">Track order</a>
         </div>
       </nav>
     </header>
@@ -253,7 +249,7 @@ function footerTemplate() {
         </div>
         <div>
           <h4>We Accept</h4>
-          <p class="pay-methods">Cash on Delivery &middot; eSewa &middot; Khalti</p>
+          <p class="pay-methods">Cash on Delivery &middot; eSewa &middot; Bank transfer</p>
         </div>
         <div>
           <h4>Business Registration</h4>
@@ -306,7 +302,7 @@ async function loadHeaderCategories() {
     const res = await fetch(`${API_ROOT}/categories`);
     const categories = await res.json();
     row.innerHTML = ['All Beauty', ...categories].map((c) => `
-      <a href="index.html?category=${encodeURIComponent(c)}" class="category-nav-item">${iconForCategory(c)}<span>${c}</span></a>
+      <a href="index.html?category=${encodeURIComponent(c)}" class="category-nav-item">${iconForCategory(c)}<span>${c === 'All Beauty' ? 'All products' : c}</span></a>
     `).join('');
   } catch (err) {
     // keep default "All Beauty" entry

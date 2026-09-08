@@ -1,6 +1,6 @@
 const apiRoot = '/api';
 const content = document.getElementById('adminOrdersContent');
-const ORDER_STATUSES = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+const ORDER_STATUSES = ['Payment Verification', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
 
 function requireLogin() {
   const token = localStorage.getItem('adminToken');
@@ -57,7 +57,7 @@ async function loadOrders() {
               <td>${order.shippingAddress.fullName}<br/><small>${order.shippingAddress.phone}</small></td>
               <td class="order-items-preview">${order.items.map((i) => `${i.name} x${i.qty}`).join(', ')}</td>
               <td>${formatPrice(order.total, order.currency)}</td>
-              <td>${order.paymentMethod}</td>
+              <td>${order.paymentMethod}${order.paymentProof ? `<br/><a class="payment-proof-link" href="${order.paymentProof}" target="_blank" rel="noopener">View proof</a>` : ''}</td>
               <td>
                 <select class="status-select" data-id="${order.id}">
                   ${ORDER_STATUSES.map((s) => `<option value="${s}" ${s === order.status ? 'selected' : ''}>${s}</option>`).join('')}

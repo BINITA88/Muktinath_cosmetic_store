@@ -53,7 +53,7 @@ async function loadOrders() {
 }
 
 if (!isCustomerLoggedIn()) {
-  window.location.href = 'account.html?redirect=orders.html';
+  window.location.href = 'login.html?role=customer&redirect=orders.html';
 } else {
   loadOrders();
 }

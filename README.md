@@ -20,7 +20,7 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Open `http://localhost:5000`. On its first successful database connection, the API creates indexes and seeds the initial product and category data.
+Open `http://localhost:5001`. On its first successful database connection, the API creates indexes and seeds the initial product and category data.
 
 `GET /api/health` confirms that the API is running.
 
