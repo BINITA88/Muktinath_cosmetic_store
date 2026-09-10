@@ -24,7 +24,8 @@ const ICONS = {
   bubbles: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="14" r="5"/><circle cx="17" cy="8" r="3"/></svg>',
   bottle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M10 2h4v3l2 2v13a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2V7l2-2V2Z"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
   leaf: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20c8 0 16-6 16-16C10 4 4 12 4 20Z"/><path d="M4 20c4-6 8-10 16-16"/></svg>',
-  pipette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M9 3l6 6-8 8-3-3 8-8Z"/><path d="M13 5l4-2 2 2-2 4"/><circle cx="7" cy="17" r="1" fill="currentColor" stroke="none"/></svg>'
+  pipette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M9 3l6 6-8 8-3-3 8-8Z"/><path d="M13 5l4-2 2 2-2 4"/><circle cx="7" cy="17" r="1" fill="currentColor" stroke="none"/></svg>',
+  play: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>'
 };
 
 const CATEGORY_ICON_MAP = {
@@ -65,16 +66,23 @@ function setCart(cart) {
   updateCartBadge();
 }
 
-function addToCart(product, qty) {
+function cartItemKey(id, variant = '') {
+  return variant ? `${id}::${variant}` : String(id);
+}
+
+function addToCart(product, qty, variant = '') {
   const cart = getCart();
   const quantity = Math.max(1, Number(qty) || 1);
-  const existing = cart.find((item) => item.id === product.id);
+  const key = cartItemKey(product.id, variant);
+  const existing = cart.find((item) => (item.key || cartItemKey(item.id, item.variant)) === key);
   if (existing) {
     existing.qty += quantity;
   } else {
     cart.push({
+      key,
       id: product.id,
       name: product.name,
+      variant,
       price: product.price,
       currency: product.currency,
       image: product.image,
@@ -84,16 +92,16 @@ function addToCart(product, qty) {
   setCart(cart);
 }
 
-function updateCartQty(id, qty) {
+function updateCartQty(key, qty) {
   const cart = getCart();
-  const item = cart.find((i) => i.id === id);
+  const item = cart.find((i) => (i.key || cartItemKey(i.id, i.variant)) === key);
   if (!item) return;
   item.qty = Math.max(1, Number(qty) || 1);
   setCart(cart);
 }
 
-function removeFromCart(id) {
-  const cart = getCart().filter((i) => i.id !== id);
+function removeFromCart(key) {
+  const cart = getCart().filter((item) => (item.key || cartItemKey(item.id, item.variant)) !== key);
   setCart(cart);
 }
 
@@ -226,7 +234,7 @@ function headerTemplate(subtitle) {
       <nav class="category-nav">
         <div class="container category-nav-inner">
           <div class="category-nav-row" id="categoryNavRow">
-            <a href="index.html" class="category-nav-item">${ICONS.sparkle}<span>All products</span></a>
+            <a href="shop.html" class="category-nav-item">${ICONS.sparkle}<span>All products</span></a>
           </div>
           <a class="track-order-link" href="orders.html">Track order</a>
         </div>
@@ -302,7 +310,7 @@ async function loadHeaderCategories() {
     const res = await fetch(`${API_ROOT}/categories`);
     const categories = await res.json();
     row.innerHTML = ['All Beauty', ...categories].map((c) => `
-      <a href="index.html?category=${encodeURIComponent(c)}" class="category-nav-item">${iconForCategory(c)}<span>${c === 'All Beauty' ? 'All products' : c}</span></a>
+      <a href="shop.html?category=${encodeURIComponent(c)}" class="category-nav-item">${iconForCategory(c)}<span>${c === 'All Beauty' ? 'All products' : c}</span></a>
     `).join('');
   } catch (err) {
     // keep default "All Beauty" entry

@@ -9,30 +9,41 @@
 </head>
 <body>
   <div id="siteHeader" data-subtitle="Checkout"></div>
-  <main class="container">
-    <h2>Checkout</h2>
+  <main class="container checkout-page">
+    <header class="checkout-heading">
+      <p>Secure checkout</p>
+      <h1>Complete your order</h1>
+      <span>Share your delivery details, then choose the payment method that suits you.</span>
+    </header>
     <div class="checkout-layout">
-      <div class="category-section">
-        <h3>Shipping Details</h3>
-        <form id="checkoutForm" class="admin-form">
-          <div class="form-row"><label>Full Name <input id="fullName" required /></label></div>
-          <div class="form-row"><label>Phone <input id="phone" required /></label></div>
-          <div class="form-row"><label>City <input id="city" required /></label></div>
-          <div class="form-row"><label>Delivery Address <textarea id="address" rows="2" required></textarea></label></div>
-          <div class="form-row"><label>Order Notes (optional) <textarea id="notes" rows="2"></textarea></label></div>
-
-          <button id="placeOrderBtn" type="submit" class="btn">Choose payment method</button>
+      <section class="checkout-card checkout-form-card">
+        <div class="checkout-card-heading">
+          <span class="checkout-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 19.5v-9Z"/><path d="M9 21v-6h6v6"/></svg></span>
+          <div><p>Delivery information</p><h2>Shipping details</h2></div>
+        </div>
+        <form id="checkoutForm" class="checkout-form">
+          <div class="form-row"><label>Full name <span class="checkout-input"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg><input id="fullName" autocomplete="name" required /></span></label></div>
+          <div class="form-row"><label>Phone number <span class="checkout-input"><svg viewBox="0 0 24 24"><path d="M5 3h3l2 5-2 1.6c1.2 2.5 3.2 4.5 5.7 5.7l1.6-2 5 2v3c0 1.1-.9 2-2 2C10 21 3 14 3 5c0-1.1.9-2 2-2Z"/></svg><input id="phone" inputmode="tel" autocomplete="tel" required /></span></label></div>
+          <div class="form-row"><label>City <span class="checkout-input"><svg viewBox="0 0 24 24"><path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg><input id="city" autocomplete="address-level2" required /></span></label></div>
+          <div class="form-row form-row--wide"><label>Delivery address <span class="checkout-input checkout-input--textarea"><svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg><textarea id="address" rows="3" autocomplete="street-address" required></textarea></span></label></div>
+          <div class="form-row form-row--wide"><label>Order notes <small>Optional</small><span class="checkout-input checkout-input--textarea"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="m8 14 2 2 5-5"/></svg><textarea id="notes" rows="2" placeholder="Any delivery instructions for us?"></textarea></span></label></div>
+          <button id="placeOrderBtn" type="submit" class="btn checkout-submit">Continue to payment <span>&rarr;</span></button>
         </form>
         <div id="checkoutMessage" class="admin-message"></div>
-      </div>
+        <div class="checkout-security"><span>✓ Your details are kept secure</span><span>✓ Cash on delivery available</span></div>
+      </section>
 
-      <div class="cart-summary">
-        <h3>Order Summary</h3>
+      <aside class="cart-summary checkout-summary">
+        <div class="checkout-card-heading">
+          <span class="checkout-icon checkout-icon--bag" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 8h14l-1 13H6L5 8Z"/><path d="M9 9V6a3 3 0 0 1 6 0v3"/></svg></span>
+          <div><p>Your bag</p><h2>Order summary</h2></div>
+        </div>
         <div id="orderSummaryList" class="order-summary-list"></div>
         <div class="summary-line"><span>Subtotal</span><span id="summarySubtotal"></span></div>
         <div class="summary-line"><span>Shipping</span><span id="summaryShipping"></span></div>
         <div class="summary-line total"><span>Total</span><span id="summaryTotal"></span></div>
-      </div>
+        <p class="checkout-summary-note">Free delivery on orders over Rs 3,000 NPR.</p>
+      </aside>
     </div>
   </main>
   <div id="paymentModal" class="checkout-modal" hidden aria-hidden="true">

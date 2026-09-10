@@ -23,10 +23,11 @@ function renderCart() {
     <div class="cart-layout">
       <div class="cart-items">
         ${cart.map((item) => `
-          <div class="cart-row" data-id="${item.id}">
+          <div class="cart-row" data-key="${item.key || cartItemKey(item.id, item.variant)}">
             <img src="${item.image}" alt="${item.name}" />
             <div class="cart-info">
               <h4>${item.name}</h4>
+              ${item.variant ? `<small class="cart-variant">${item.variant}</small>` : ''}
               <div class="unit-price">${formatPrice(item.price, item.currency)} each</div>
               <div class="qty-stepper">
                 <button type="button" class="qty-minus">-</button>
@@ -54,25 +55,25 @@ function renderCart() {
 
 function wireCartEvents() {
   cartContent.querySelectorAll('.cart-row').forEach((row) => {
-    const id = row.dataset.id;
+    const key = row.dataset.key;
     row.querySelector('.qty-minus').addEventListener('click', () => {
       const input = row.querySelector('.qty-input');
       const value = Math.max(1, Number(input.value) - 1);
-      updateCartQty(id, value);
+      updateCartQty(key, value);
       renderCart();
     });
     row.querySelector('.qty-plus').addEventListener('click', () => {
       const input = row.querySelector('.qty-input');
       const value = Number(input.value) + 1;
-      updateCartQty(id, value);
+      updateCartQty(key, value);
       renderCart();
     });
     row.querySelector('.qty-input').addEventListener('change', (e) => {
-      updateCartQty(id, e.target.value);
+      updateCartQty(key, e.target.value);
       renderCart();
     });
     row.querySelector('.cart-remove').addEventListener('click', () => {
-      removeFromCart(id);
+      removeFromCart(key);
       renderCart();
     });
   });

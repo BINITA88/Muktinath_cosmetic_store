@@ -9,17 +9,28 @@
 <body class="admin-page">
   <header class="admin-topbar">
     <a href="index.html"><img src="images/logo.png" alt="Muktinath"></a>
-    <div><strong>Store Admin</strong><span id="authStatus">Loading...</span></div>
-    <button id="logoutBtn" class="admin-logout">Log out</button>
+    <div><strong id="adminWelcome" class="admin-welcome"></strong></div>
+    <button id="logoutBtn" class="admin-logout admin-logout--danger"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span>Log out</span></button>
   </header>
+
+  <div id="logoutModal" class="admin-modal-overlay" hidden>
+    <div class="admin-modal" role="alertdialog" aria-modal="true" aria-labelledby="logoutModalTitle">
+      <h3 id="logoutModalTitle">Log out?</h3>
+      <p>Are you sure you want to log out of the Store Admin dashboard?</p>
+      <div class="admin-modal-actions">
+        <button id="logoutCancelBtn" class="admin-secondary">Cancel</button>
+        <button id="logoutConfirmBtn" class="admin-danger-btn">Log out</button>
+      </div>
+    </div>
+  </div>
   <main class="admin-shell">
     <aside class="admin-sidebar">
-      <button class="admin-nav active" data-panel="overview">Overview</button>
-      <button class="admin-nav" data-panel="products">Products</button>
-      <button class="admin-nav" data-panel="categories">Categories</button>
-      <button class="admin-nav" data-panel="orders">Orders</button>
-      <button class="admin-nav" data-panel="tiktok">TikTok videos</button>
-      <a href="index.html">View store ↗</a>
+      <button class="admin-nav active" data-panel="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg><span>Overview</span></button>
+      <button class="admin-nav" data-panel="products"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg><span>Products</span></button>
+      <button class="admin-nav" data-panel="categories"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.6 12.9 4H4v8.9l7.6 7.6a2 2 0 0 0 2.8 0l6.1-6.1a2 2 0 0 0 0-2.8Z"/><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" stroke="none"/></svg><span>Categories</span></button>
+      <button class="admin-nav" data-panel="orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg><span>Orders</span></button>
+      <button class="admin-nav" data-panel="videos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="M16 10.5 22 7v10l-6-3.5Z"/></svg><span>Beauty videos</span></button>
+      <a href="index.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h6"/></svg><span>View store</span></a>
     </aside>
     <section class="admin-content">
       <div id="adminMessage" class="admin-message" role="status"></div>
@@ -27,12 +38,17 @@
       <section class="admin-panel active" data-panel-content="overview">
         <p class="admin-kicker">STORE OVERVIEW</p><h1>Welcome back</h1>
         <p class="admin-muted">Manage your catalogue, categories, customer orders, and social videos from one place.</p>
-        <div class="admin-stats"><article><span>Products</span><strong id="statProducts">—</strong></article><article><span>Categories</span><strong id="statCategories">—</strong></article><article><span>Orders</span><strong id="statOrders">—</strong></article><article><span>Pending orders</span><strong id="statPending">—</strong></article></div>
+        <div class="admin-stats">
+          <article><span class="admin-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8l9 5 9-5Z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg></span><span>Products</span><strong id="statProducts">—</strong></article>
+          <article><span class="admin-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.6 12.9 4H4v8.9l7.6 7.6a2 2 0 0 0 2.8 0l6.1-6.1a2 2 0 0 0 0-2.8Z"/><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" stroke="none"/></svg></span><span>Categories</span><strong id="statCategories">—</strong></article>
+          <article><span class="admin-stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12v20l-3-2-3 2-3-2-3 2V2Z"/><path d="M9 7h6"/><path d="M9 11h6"/><path d="M9 15h4"/></svg></span><span>Orders</span><strong id="statOrders">—</strong></article>
+          <article><span class="admin-stat-icon admin-stat-icon--alert"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/></svg></span><span>Pending orders</span><strong id="statPending">—</strong></article>
+        </div>
       </section>
 
       <section class="admin-panel" data-panel-content="products">
         <div class="admin-section-heading"><div><p class="admin-kicker">CATALOGUE</p><h2 id="productFormTitle">Add product</h2></div><button id="cancelEditBtn" class="admin-secondary" hidden>Cancel editing</button></div>
-        <form id="adminForm" class="admin-product-form"><input id="productId" type="hidden"><label>Name<input id="name" required></label><label>Category<select id="category" required></select></label><label>Price (NPR)<input id="price" type="number" min="0" required></label><label>Stock<input id="stock" type="number" min="0" value="10" required></label><label class="wide">Short description<input id="short" required></label><label class="wide">Full description<textarea id="description" rows="3" required></textarea></label><label class="wide">Ingredients <small>(comma separated)</small><input id="ingredients"></label><label class="wide">Image URL<input id="imageUrl" type="url" placeholder="https://..."></label><label class="wide">Or upload image<input id="imageFile" type="file" accept="image/*"></label><div class="wide admin-form-actions"><button id="saveBtn" class="admin-primary">Save product</button></div></form>
+        <form id="adminForm" class="admin-product-form"><input id="productId" type="hidden"><label>Name<input id="name" required></label><label>Category<select id="category" required></select></label><label>Price (NPR)<input id="price" type="number" min="0" required></label><label>Stock<input id="stock" type="number" min="0" value="10" required></label><label class="wide">Short description<input id="short" required></label><label class="wide">Full description<textarea id="description" rows="3" required></textarea></label><label class="wide">Ingredients <small>(comma separated)</small><input id="ingredients"></label><label class="wide">Variants or shades <small>(optional, comma separated — e.g. Rose Nude, Berry Red, Mocha)</small><input id="variants" placeholder="Rose Nude, Berry Red, Mocha"></label><label class="wide">Upload product images <small>(up to 6 images; first image is the cover. Choose a shade for each image in the preview.)</small><span id="imageUploadInputs"><input id="imageFiles" data-image-file-input type="file" accept="image/*" multiple></span><button id="addImageInput" class="admin-secondary add-image-input" type="button">+ Add another image</button></label><div id="imagePreview" class="admin-image-preview wide" aria-live="polite"></div><div class="wide admin-form-actions"><button id="saveBtn" class="admin-primary">Save product</button></div></form>
         <div class="admin-list-heading"><h2>All products</h2><input id="productSearch" type="search" placeholder="Search products"></div><div id="productsList" class="admin-product-list"></div>
       </section>
 
@@ -45,11 +61,11 @@
         <div class="admin-section-heading"><div><p class="admin-kicker">SALES</p><h2>Customer orders</h2><p class="admin-muted">Review delivery details, payment screenshots, and verification before processing each order.</p></div><button id="refreshOrders" class="admin-secondary">Refresh</button></div><div id="ordersList" class="admin-orders-list"></div>
       </section>
 
-      <section class="admin-panel" data-panel-content="tiktok">
-        <p class="admin-kicker">SOCIAL CONTENT</p><h2>TikTok video library</h2>
-        <p class="admin-muted">Add the latest TikTok video URLs here. Customers will see every listed video on the store homepage.</p>
-        <form id="tiktokAdminForm" class="admin-tiktok-form"><input id="tiktokPostUrl" type="url" placeholder="Paste a TikTok link, e.g. https://vt.tiktok.com/..." required><button class="admin-primary">Add TikTok video</button></form>
-        <div id="adminTikTokList" class="admin-tiktok-list"></div>
+      <section class="admin-panel" data-panel-content="videos">
+        <p class="admin-kicker">SOCIAL CONTENT</p><h2>Beauty video library</h2>
+        <p class="admin-muted">Upload short videos from your computer (MP4, WEBM, or MOV, up to 40 MB). Customers will see them on the store homepage and can hover — or tap on mobile — to play.</p>
+        <form id="videoAdminForm" class="admin-tiktok-form admin-video-form"><input id="videoFile" type="file" accept="video/mp4,video/webm,video/quicktime" required><input id="videoCaption" type="text" placeholder="Optional caption"><button class="admin-primary">Upload video</button></form>
+        <div id="adminVideoList" class="admin-tiktok-list"></div>
       </section>
     </section>
   </main>

@@ -17,10 +17,13 @@ function renderProducts(products) {
           <button class="wishlist-btn ${wished ? 'active' : ''}" data-id="${product.id}" title="Save to wishlist">${wished ? ICONS.heartFilled : ICONS.heart}</button>
         </div>
         <div class="card-content">
+          <span class="product-category">${product.category}</span>
           <h3>${product.name}</h3>
           <p>${product.short}</p>
-          <div class="price">${formatPrice(product.price, product.currency)}</div>
-          <div class="stock-note ${outOfStock ? 'low' : ''}">${outOfStock ? 'Out of stock' : `${product.stock} in stock`}</div>
+          <div class="product-meta">
+            <div class="price">${formatPrice(product.price, product.currency)}</div>
+            <div class="stock-note ${outOfStock ? 'low' : ''}">${outOfStock ? 'Out of stock' : `${product.stock} in stock`}</div>
+          </div>
           <div class="card-actions">
             <button class="btn add-to-cart-btn" data-id="${product.id}" ${outOfStock ? 'disabled' : ''}>Add to Cart</button>
           </div>
@@ -85,7 +88,7 @@ function renderShowcase(products) {
     if (!byCategory[p.category]) byCategory[p.category] = p.image;
   });
   showcaseTrack.innerHTML = Object.keys(byCategory).map((cat) => `
-    <a href="index.html?category=${encodeURIComponent(cat)}" class="showcase-tile" style="background-image:url('${byCategory[cat]}')">
+    <a href="shop.html?category=${encodeURIComponent(cat)}" class="showcase-tile" style="background-image:url('${byCategory[cat]}')">
       <span class="showcase-badge">${cat}</span>
     </a>
   `).join('');
@@ -155,30 +158,52 @@ function initHeroCarousel() {
   startAutoPlay();
 }
 
-function getTikTokEmbedUrl(url) {
-  try {
-    const parsed = new URL(url);
-    if (!parsed.hostname.includes('tiktok.com')) return null;
-    const id = parsed.pathname.match(/(?:video|v)\/(\d+)/)?.[1] || parsed.pathname.match(/\/(\d+)(?:\/)?$/)?.[1];
-    return id ? `https://www.tiktok.com/embed/v2/${id}` : null;
-  } catch (error) {
-    return null;
-  }
+function initHeroTitleReveal() {
+  const heading = document.querySelector('.hero-slide.is-active h1');
+  if (!heading) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  const words = heading.textContent.trim().split(/\s+/);
+  let charIndex = 0;
+  heading.innerHTML = words.map((word) => {
+    const chars = word.split('').map((char) => {
+      const span = `<span class="hero-title-char" style="animation-delay:${charIndex * 38}ms">${char}</span>`;
+      charIndex += 1;
+      return span;
+    }).join('');
+    return `<span class="hero-title-word">${chars}</span>`;
+  }).join(' ');
+  heading.classList.add('hero-title-reveal');
 }
 
-async function loadTikTokVideos() {
+async function loadShowcaseVideos() {
   const container = document.getElementById('tiktokVideos');
   if (!container) return;
   try {
-    const response = await fetch(`${API_ROOT}/tiktok-posts`);
+    const response = await fetch(`${API_ROOT}/showcase-videos`);
     if (!response.ok) throw new Error('Could not load videos');
-    const posts = await response.json();
-    container.innerHTML = posts.length ? posts.map((post) => {
-      const embedUrl = post.embedUrl || getTikTokEmbedUrl(post.url);
-      return embedUrl ? `<article class="tiktok-video-card"><iframe src="${embedUrl}" title="Muktinath TikTok beauty video" allow="encrypted-media; fullscreen" allowfullscreen></iframe></article>` : '';
-    }).join('') : '<p class="tiktok-empty">New beauty videos are coming soon. Follow us on TikTok for the latest updates.</p>';
+    const videos = await response.json();
+    container.innerHTML = videos.length ? videos.map((video) => `
+      <article class="tiktok-video-card" tabindex="0">
+        <video src="${video.video}" muted loop playsinline preload="metadata"></video>
+        <span class="showcase-video-play">${ICONS.play}</span>
+        ${video.caption ? `<span class="showcase-video-caption">${video.caption}</span>` : ''}
+      </article>
+    `).join('') : '<p class="tiktok-empty">New beauty videos are coming soon. Check back soon for the latest updates.</p>';
+
+    container.querySelectorAll('.tiktok-video-card').forEach((card) => {
+      const video = card.querySelector('video');
+      if (!video) return;
+      const play = () => { video.currentTime = 0; video.play().catch(() => {}); card.classList.add('is-playing'); };
+      const stop = () => { video.pause(); video.currentTime = 0; card.classList.remove('is-playing'); };
+      card.addEventListener('mouseenter', play);
+      card.addEventListener('mouseleave', stop);
+      card.addEventListener('focus', play);
+      card.addEventListener('blur', stop);
+      card.addEventListener('touchstart', () => { if (video.paused) play(); else stop(); }, { passive: true });
+    });
   } catch (error) {
-    container.innerHTML = '<p class="tiktok-empty">TikTok videos are unavailable right now. Please check back soon.</p>';
+    container.innerHTML = '<p class="tiktok-empty">Videos are unavailable right now. Please check back soon.</p>';
   }
 }
 
@@ -213,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   initHeroCarousel();
-  loadTikTokVideos();
+  initHeroTitleReveal();
+  loadShowcaseVideos();
   loadProducts();
 });

@@ -16,6 +16,12 @@ const codPaymentNote = document.getElementById('codPaymentNote');
 const proofTitle = document.getElementById('proofTitle');
 let completedOrderId = null;
 
+function escapeCheckoutHtml(value) {
+  return String(value || '').replace(/[&<>'"]/g, (character) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  }[character]));
+}
+
 function selectedPaymentMethod() {
   return document.querySelector('input[name="paymentMethod"]:checked').value;
 }
@@ -41,7 +47,13 @@ function renderSummary() {
   const cart = getCart();
   const list = document.getElementById('orderSummaryList');
   const currency = cart[0] ? cart[0].currency : 'NPR';
-  list.innerHTML = cart.map((item) => `<div class="order-summary-item"><span>${item.name} x${item.qty}</span><span>${formatPrice(item.price * item.qty, item.currency)}</span></div>`).join('');
+  list.innerHTML = cart.map((item) => `
+    <article class="order-summary-item">
+      <img src="${escapeCheckoutHtml(item.image)}" alt="${escapeCheckoutHtml(item.name)}" />
+      <div><strong>${escapeCheckoutHtml(item.name)}</strong>${item.variant ? `<small>${escapeCheckoutHtml(item.variant)}</small>` : ''}<span>Qty ${item.qty}</span></div>
+      <b>${formatPrice(item.price * item.qty, item.currency)}</b>
+    </article>
+  `).join('');
   const subtotal = cartSubtotal();
   const shippingFee = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FEE;
   document.getElementById('summarySubtotal').textContent = formatPrice(subtotal, currency);
@@ -112,7 +124,7 @@ async function placeOrder() {
   confirmOrderBtn.disabled = true;
   confirmOrderBtn.textContent = 'Submitting order...';
   const payload = {
-    items: cart.map((item) => ({ id: item.id, name: item.name, qty: item.qty })),
+    items: cart.map((item) => ({ id: item.id, name: item.name, variant: item.variant || '', qty: item.qty })),
     shippingAddress: {
       fullName: document.getElementById('fullName').value.trim(), phone: document.getElementById('phone').value.trim(),
       city: document.getElementById('city').value.trim(), address: document.getElementById('address').value.trim(), notes: document.getElementById('notes').value.trim()

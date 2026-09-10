@@ -24,6 +24,14 @@ const imageUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => cb(null, /^image\/(jpeg|png|webp|gif)$/.test(file.mimetype))
 });
+const videoUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsPath),
+    filename: (_req, file, cb) => cb(null, `${Date.now()}-${crypto.randomBytes(6).toString('hex')}${path.extname(file.originalname).toLowerCase()}`)
+  }),
+  limits: { fileSize: 40 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^video\/(mp4|webm|quicktime|ogg)$/.test(file.mimetype))
+});
 app.use('/uploads', express.static(uploadsPath));
 
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
@@ -38,6 +46,44 @@ const ORDER_STATUSES = ['Payment Verification', 'Pending', 'Processing', 'Shippe
 const PAYMENT_VERIFICATION_STATUSES = ['Awaiting review', 'Verified', 'Not verified', 'Not required'];
 const SHIPPING_FEE = 100;
 const FREE_SHIPPING_THRESHOLD = 3000;
+
+async function sendOwnerSms(order) {
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioFrom = process.env.TWILIO_FROM;
+  const ownerPhone = process.env.OWNER_SMS_PHONE;
+
+  if (!accountSid || !authToken || !twilioFrom || !ownerPhone) {
+    console.log('Skipping SMS notification because Twilio environment variables are not configured.');
+    return;
+  }
+
+  const orderId = String(order.id || order._id || '').slice(-6);
+  const total = Number(order.total || 0).toLocaleString('en-NP');
+  const baseUrl = (process.env.APP_URL || 'http://localhost:3000').replace(/\/$/, '');
+  const proofLink = order.paymentProof ? `${baseUrl}${order.paymentProof}` : 'No payment proof uploaded';
+  const message = `New paid order #${orderId} from ${order.customerName} (${order.shippingAddress.phone}). Payment: ${order.paymentMethod}. Total: Rs ${total}. Address: ${order.shippingAddress.address}, ${order.shippingAddress.city}. Proof: ${proofLink}`;
+
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: new URLSearchParams({
+      To: ownerPhone,
+      From: twilioFrom,
+      Body: message
+    })
+  });
+
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(`Twilio SMS sending failed (${response.status}): ${responseText}`);
+  }
+
+  console.log(`SMS notification sent to owner for order #${orderId}`);
+}
 
 const sampleProducts = [
   {
@@ -59,6 +105,7 @@ const sampleProducts = [
     short: 'Soft rose tinted lip balm keeps your lips smooth and hydrated.',
     description: 'A nourishing lip balm with natural rose extract and vitamin E.',
     ingredients: ['Coconut Oil', 'Beeswax', 'Rose Extract', 'Vitamin E'],
+    variants: ['Rose Bloom', 'Peach Nude', 'Berry Kiss'],
     stock: 35,
     image: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=700&q=80'
   },
@@ -108,12 +155,36 @@ const sampleProducts = [
   }
 ];
 
+function normalizeProductImages(images, image) {
+  const rawImages = Array.isArray(images)
+    ? images
+    : typeof images === 'string'
+      ? images.split(/[\n,]/)
+      : [];
+  const combined = [...rawImages, image];
+  return [...new Set(combined.map((value) => String(value || '').trim()).filter(Boolean))];
+}
+
+function normalizeImageVariants(imageVariants, images) {
+  if (!Array.isArray(imageVariants)) return [];
+  const availableImages = new Set(images);
+  const seenImages = new Set();
+  return imageVariants.reduce((result, item) => {
+    const image = String(item?.image || '').trim();
+    const variant = String(item?.variant || '').trim();
+    if (!image || !variant || !availableImages.has(image) || seenImages.has(image)) return result;
+    seenImages.add(image);
+    result.push({ image, variant });
+    return result;
+  }, []);
+}
+
 let dbClient;
 let productsCollection;
 let categoriesCollection;
 let usersCollection;
 let ordersCollection;
-let tiktokPostsCollection;
+let showcaseVideosCollection;
 let dbConnectionPromise;
 
 async function connectDb() {
@@ -129,7 +200,7 @@ async function connectDb() {
   categoriesCollection = db.collection('categories');
   usersCollection = db.collection('users');
   ordersCollection = db.collection('orders');
-  tiktokPostsCollection = db.collection('tiktokPosts');
+  showcaseVideosCollection = db.collection('showcaseVideos');
 
   // Clean duplicate category docs by name before creating unique index
   const categoryNames = await categoriesCollection.distinct('name');
@@ -145,8 +216,7 @@ async function connectDb() {
   await usersCollection.createIndex({ email: 1 }, { unique: true, background: true });
   await usersCollection.createIndex({ token: 1 }, { background: true });
   await ordersCollection.createIndex({ userId: 1 }, { background: true });
-  await tiktokPostsCollection.createIndex({ createdAt: -1 }, { background: true });
-  await tiktokPostsCollection.createIndex({ url: 1 }, { unique: true, background: true });
+  await showcaseVideosCollection.createIndex({ createdAt: -1 }, { background: true });
 
   const defaultCategories = Array.from(new Set(sampleProducts.map((p) => p.category).filter(Boolean)));
   for (const name of defaultCategories) {
@@ -317,108 +387,69 @@ app.get('/api/auth/me', requireAuth, (req, res) => {
   res.json(publicUser(req.user));
 });
 
-// ---------- TikTok videos ----------
+// ---------- Showcase videos (uploaded from the admin's computer) ----------
 
-function isTikTokHost(hostname) {
-  const host = String(hostname || '').toLowerCase();
-  return host === 'tiktok.com' || host.endsWith('.tiktok.com');
-}
-
-function getTikTokVideoId(value) {
-  try {
-    const parsed = new URL(value);
-    if (!isTikTokHost(parsed.hostname)) return null;
-    return parsed.pathname.match(/(?:video|v)\/(\d+)/)?.[1]
-      || parsed.pathname.match(/\/(\d+)(?:\/)?$/)?.[1]
-      || null;
-  } catch (error) {
-    return null;
-  }
-}
-
-async function getTikTokEmbedUrl(value) {
-  const sourceUrl = String(value || '').trim();
-  let parsed;
-  try {
-    parsed = new URL(sourceUrl);
-  } catch (error) {
-    return null;
-  }
-
-  if (!isTikTokHost(parsed.hostname)) return null;
-
-  let videoId = getTikTokVideoId(sourceUrl);
-  if (!videoId) {
-    try {
-      // TikTok's vt/vm links redirect to the full post URL. Only an approved
-      // TikTok host can be requested, so a submitted URL cannot be used as a proxy.
-      const response = await fetch(sourceUrl, {
-        redirect: 'follow',
-        signal: AbortSignal.timeout(12000),
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-      videoId = getTikTokVideoId(response.url);
-    } catch (error) {
-      return null;
-    }
-  }
-
-  return videoId ? `https://www.tiktok.com/embed/v2/${videoId}` : null;
-}
-
-function publicTikTokPost(post) {
+function publicShowcaseVideo(video) {
   return {
-    id: post._id,
-    url: post.url,
-    embedUrl: post.embedUrl || (getTikTokVideoId(post.url) ? `https://www.tiktok.com/embed/v2/${getTikTokVideoId(post.url)}` : null),
-    createdAt: post.createdAt
+    id: video._id,
+    video: video.video,
+    caption: video.caption || '',
+    createdAt: video.createdAt
   };
 }
 
-app.get('/api/tiktok-posts', async (_req, res) => {
+app.get('/api/showcase-videos', async (_req, res) => {
   try {
-    const posts = await tiktokPostsCollection.find({}).sort({ createdAt: -1 }).toArray();
-    res.json(posts.map(publicTikTokPost));
+    const videos = await showcaseVideosCollection.find({}).sort({ createdAt: -1 }).toArray();
+    res.json(videos.map(publicShowcaseVideo));
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Unable to fetch TikTok videos' });
+    res.status(500).json({ error: 'Unable to fetch videos' });
   }
 });
 
-app.get('/api/admin/tiktok-posts', requireAdmin, async (_req, res) => {
+app.get('/api/admin/showcase-videos', requireAdmin, async (_req, res) => {
   try {
-    const posts = await tiktokPostsCollection.find({}).sort({ createdAt: -1 }).toArray();
-    res.json(posts.map(publicTikTokPost));
+    const videos = await showcaseVideosCollection.find({}).sort({ createdAt: -1 }).toArray();
+    res.json(videos.map(publicShowcaseVideo));
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Unable to fetch TikTok videos' });
+    res.status(500).json({ error: 'Unable to fetch videos' });
   }
 });
 
-app.post('/api/admin/tiktok-posts', requireAdmin, async (req, res) => {
+app.post('/api/uploads/showcase-video', requireAdmin, videoUpload.single('video'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'Please choose an MP4, WEBM, or MOV video (maximum 40 MB)' });
+  res.status(201).json({ video: `/uploads/${req.file.filename}` });
+});
+
+app.post('/api/admin/showcase-videos', requireAdmin, async (req, res) => {
   try {
-    const url = String(req.body.url || '').trim();
-    const embedUrl = await getTikTokEmbedUrl(url);
-    if (!embedUrl) return res.status(400).json({ error: 'Use a TikTok video link. Short vt.tiktok.com links are accepted, but the link must open to a public video.' });
-    const post = { url, embedUrl, createdAt: new Date() };
-    const result = await tiktokPostsCollection.insertOne(post);
-    res.status(201).json({ id: result.insertedId, ...post });
+    const video = String(req.body.video || '').trim();
+    if (!video.startsWith('/uploads/')) return res.status(400).json({ error: 'Upload a video first, then save it.' });
+    const caption = String(req.body.caption || '').trim();
+    const doc = { video, caption, createdAt: new Date() };
+    const result = await showcaseVideosCollection.insertOne(doc);
+    res.status(201).json({ id: result.insertedId, ...doc });
   } catch (error) {
-    if (error.code === 11000) return res.status(409).json({ error: 'This TikTok video is already listed' });
     console.error(error);
-    res.status(500).json({ error: 'Unable to add TikTok video' });
+    res.status(500).json({ error: 'Unable to add video' });
   }
 });
 
-app.delete('/api/admin/tiktok-posts/:id', requireAdmin, async (req, res) => {
+app.delete('/api/admin/showcase-videos/:id', requireAdmin, async (req, res) => {
   try {
-    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'Invalid TikTok video id' });
-    const result = await tiktokPostsCollection.deleteOne({ _id: new ObjectId(req.params.id) });
-    if (!result.deletedCount) return res.status(404).json({ error: 'TikTok video not found' });
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'Invalid video id' });
+    const existing = await showcaseVideosCollection.findOne({ _id: new ObjectId(req.params.id) });
+    if (!existing) return res.status(404).json({ error: 'Video not found' });
+    await showcaseVideosCollection.deleteOne({ _id: existing._id });
+    if (existing.video && existing.video.startsWith('/uploads/')) {
+      fs.unlink(path.join(uploadsPath, path.basename(existing.video)), () => {});
+    }
     res.status(204).end();
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Unable to remove TikTok video' });
+    res.status(500).json({ error: 'Unable to remove video' });
   }
 });
 
@@ -471,6 +502,9 @@ app.get('/api/products/:id', async (req, res) => {
       short: product.short,
       description: product.description,
       ingredients: product.ingredients,
+      variants: product.variants || [],
+      images: normalizeProductImages(product.images, product.image),
+      imageVariants: normalizeImageVariants(product.imageVariants, normalizeProductImages(product.images, product.image)),
       stock: product.stock,
       image: product.image
     });
@@ -544,8 +578,9 @@ app.delete('/api/categories/:name', requireAdmin, async (req, res) => {
 
 app.post('/api/products', requireAdmin, async (req, res) => {
   try {
-    const { name, category, price, currency, short, description, ingredients, stock, image } = req.body;
-    if (!name || !category || !price || !short || !description || !image) {
+    const { name, category, price, currency, short, description, ingredients, variants, images, imageVariants, stock, image } = req.body;
+    const productImages = normalizeProductImages(images, image);
+    if (!name || !category || !price || !short || !description || !productImages.length) {
       return res.status(400).json({ error: 'Name, category, price, short, description and image are required' });
     }
     const categoryName = category.trim();
@@ -557,8 +592,11 @@ app.post('/api/products', requireAdmin, async (req, res) => {
       short: short.trim(),
       description: description.trim(),
       ingredients: Array.isArray(ingredients) ? ingredients : typeof ingredients === 'string' ? ingredients.split(',').map((i) => i.trim()).filter(Boolean) : [],
+      variants: Array.isArray(variants) ? variants : typeof variants === 'string' ? variants.split(',').map((variant) => variant.trim()).filter(Boolean) : [],
       stock: Number(stock) || 0,
-      image: image.trim()
+      image: productImages[0],
+      images: productImages,
+      imageVariants: normalizeImageVariants(imageVariants, productImages)
     };
     await categoriesCollection.updateOne(
       { name: categoryName },
@@ -578,6 +616,11 @@ app.post('/api/uploads/product-image', requireAdmin, imageUpload.single('image')
   res.status(201).json({ image: `/uploads/${req.file.filename}` });
 });
 
+app.post('/api/uploads/product-images', requireAdmin, imageUpload.array('images', 6), (req, res) => {
+  if (!req.files?.length) return res.status(400).json({ error: 'Please choose up to 6 JPG, PNG, WEBP, or GIF images (maximum 5 MB each)' });
+  res.status(201).json({ images: req.files.map((file) => `/uploads/${file.filename}`) });
+});
+
 app.post('/api/uploads/payment-proof', requireAuth, imageUpload.single('proof'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'Please choose a JPG, PNG, WEBP, or GIF image (maximum 5 MB)' });
   res.status(201).json({ image: `/uploads/${req.file.filename}` });
@@ -587,15 +630,18 @@ app.put('/api/products/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     if (!ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid product id' });
-    const { name, category, price, currency, short, description, ingredients, stock, image } = req.body;
-    if (!name || !category || price === undefined || !short || !description || !image) {
+    const { name, category, price, currency, short, description, ingredients, variants, images, imageVariants, stock, image } = req.body;
+    const productImages = normalizeProductImages(images, image);
+    if (!name || !category || price === undefined || !short || !description || !productImages.length) {
       return res.status(400).json({ error: 'Name, category, price, short, description and image are required' });
     }
     const product = {
       name: name.trim(), category: category.trim(), price: Number(price), currency: currency || 'NPR',
       short: short.trim(), description: description.trim(),
       ingredients: Array.isArray(ingredients) ? ingredients : String(ingredients || '').split(',').map((i) => i.trim()).filter(Boolean),
-      stock: Number(stock) || 0, image: image.trim()
+      variants: Array.isArray(variants) ? variants : String(variants || '').split(',').map((variant) => variant.trim()).filter(Boolean),
+      stock: Number(stock) || 0, image: productImages[0], images: productImages,
+      imageVariants: normalizeImageVariants(imageVariants, productImages)
     };
     await categoriesCollection.updateOne({ name: product.category }, { $setOnInsert: { name: product.category } }, { upsert: true });
     const result = await productsCollection.findOneAndUpdate({ _id: new ObjectId(id) }, { $set: product }, { returnDocument: 'after' });
@@ -646,6 +692,13 @@ app.post('/api/orders', requireAuth, async (req, res) => {
         return res.status(400).json({ error: `Product not found: ${item.name || item.id}` });
       }
       const qty = Math.max(1, Number(item.qty) || 1);
+      let variant = String(item.variant || '').trim();
+      if (Array.isArray(product.variants) && product.variants.length && !variant) {
+        variant = product.variants[0];
+      }
+      if (Array.isArray(product.variants) && product.variants.length && !product.variants.includes(variant)) {
+        return res.status(400).json({ error: `Please choose a valid option for ${product.name}` });
+      }
       const lineTotal = product.price * qty;
       subtotal += lineTotal;
       orderItems.push({
@@ -654,6 +707,7 @@ app.post('/api/orders', requireAuth, async (req, res) => {
         image: product.image,
         price: product.price,
         currency: product.currency,
+        variant,
         qty
       });
     }
@@ -691,7 +745,17 @@ app.post('/api/orders', requireAuth, async (req, res) => {
     };
 
     const result = await ordersCollection.insertOne(order);
-    res.status(201).json({ id: result.insertedId, ...order });
+    const createdOrder = { id: result.insertedId, ...order };
+
+    if (isOnlinePayment) {
+      try {
+        await sendOwnerSms(createdOrder);
+      } catch (error) {
+        console.error('Failed to send owner SMS notification:', error.message);
+      }
+    }
+
+    res.status(201).json(createdOrder);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Unable to place order' });
